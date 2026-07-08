@@ -1,0 +1,15 @@
+# Binarios
+/bin/
+motor-sql-go
+repl
+
+# Go
+*.test
+*.out
+vendor/
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store

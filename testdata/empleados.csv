@@ -1,0 +1,6 @@
+id,nombre,departamento,salario,activo
+1,Ana,Ventas,3200.50,true
+2,Luis,TI,4100.00,true
+3,Marta,TI,3900.75,false
+4,Pedro,Ventas,2800.00,true
+5,Sofia,RRHH,3300.00,true
