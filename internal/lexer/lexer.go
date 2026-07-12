@@ -41,6 +41,9 @@ type Token struct {
 var keywords = map[string]bool{
 	"SELECT": true, "FROM": true, "WHERE": true,
 	"AND": true, "OR": true, "TRUE": true, "FALSE": true, "NULL": true,
+	"ORDER": true, "BY": true, "LIMIT": true, "ASC": true, "DESC": true,
+	"GROUP": true, "COUNT": true, "SUM": true, "AVG": true, "MIN": true, "MAX": true,
+	"INNER": true, "JOIN": true, "ON": true,
 }
 
 type Lexer struct {
