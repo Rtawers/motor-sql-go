@@ -8,6 +8,11 @@
 //     bitácora H1) — ahora mismo InferType es una heurística simple.
 //   - Manejo de CSV con comillas/escapes raros, columnas faltantes por fila.
 //   - Tests de tabla (table-driven) cubriendo tipos mixtos, NULL, errores.
+
+// Package catalog implementa H1: carga de archivos CSV a tablas en memoria
+// con un catálogo consultable de tablas y esquemas.
+//
+// PROPIEDAD: Pamela.
 package catalog
 
 import (
@@ -58,8 +63,7 @@ func (c *Catalog) Register(t *Table) {
 	c.tables[t.Name] = t
 }
 
-// Table busca una tabla por nombre. ok=false si no existe (H2 debe traducir
-// esto a un error de "tabla inexistente", no a panic).
+// Table busca una tabla por nombre. ok=false si no existe.
 func (c *Catalog) Table(name string) (*Table, bool) {
 	t, ok := c.tables[name]
 	return t, ok
@@ -75,7 +79,7 @@ func (c *Catalog) TableNames() []string {
 
 // LoadCSV carga un archivo CSV como una tabla nombrada `tableName`.
 // La primera fila del CSV se toma como cabecera (nombres de columna).
-// El tipo de cada columna se infiere de la primera fila de datos.
+// El tipo de cada columna se infiere escaneando el primer dato válido.
 func LoadCSV(path, tableName string) (*Table, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -84,6 +88,9 @@ func LoadCSV(path, tableName string) (*Table, error) {
 	defer f.Close()
 
 	r := csv.NewReader(f)
+	r.FieldsPerRecord = -1    // Permite filas con distinto número de columnas sin lanzar error
+	r.TrimLeadingSpace = true // Limpia espacios en blanco innecesarios
+
 	records, err := r.ReadAll()
 	if err != nil {
 		return nil, fmt.Errorf("catalog: error leyendo CSV %q: %w", path, err)
@@ -98,8 +105,13 @@ func LoadCSV(path, tableName string) (*Table, error) {
 	schema := make(Schema, len(header))
 	for i, name := range header {
 		kind := types.KindString
-		if len(dataRows) > 0 {
-			kind = InferType(dataRows[0][i])
+
+		// Inferencia mejorada: escanea hacia abajo hasta encontrar un valor no vacío
+		for _, row := range dataRows {
+			if i < len(row) && row[i] != "" {
+				kind = InferType(row[i])
+				break
+			}
 		}
 		schema[i] = Column{Name: name, Kind: kind}
 	}
@@ -107,7 +119,12 @@ func LoadCSV(path, tableName string) (*Table, error) {
 	rows := make([][]types.Value, 0, len(dataRows))
 	for _, rec := range dataRows {
 		row := make([]types.Value, len(schema))
-		for i, raw := range rec {
+		for i := range schema {
+			raw := ""
+			// Manejo seguro si la fila actual tiene menos columnas que la cabecera
+			if i < len(rec) {
+				raw = rec[i]
+			}
 			row[i] = ParseValue(raw, schema[i].Kind)
 		}
 		rows = append(rows, row)
@@ -116,9 +133,7 @@ func LoadCSV(path, tableName string) (*Table, error) {
 	return &Table{Name: tableName, Schema: schema, Rows: rows}, nil
 }
 
-// InferType es una heurística MÍNIMA de inferencia de tipo a partir de un
-// string crudo. Punto de partida: el equipo debe decidir si esto basta o si
-// se necesita inspeccionar más filas / permitir declaración explícita.
+// InferType es una heurística MÍNIMA de inferencia de tipo a partir de un string crudo.
 func InferType(raw string) types.Kind {
 	if raw == "" {
 		return types.KindString

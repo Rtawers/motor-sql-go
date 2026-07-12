@@ -1,0 +1,4 @@
+id,nombre,salario,activo
+1,Juan,,true
+,,3000.50,false
+3,Maria,4000.00,

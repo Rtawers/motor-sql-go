@@ -37,3 +37,23 @@ esqueleto inicial generado.
 
 (agregar una entrada nueva por cada uso adicional de IA durante el proyecto,
 por hito o por integrante)
+
+
+## Hito 2 (H2) — Lexer, Parser y AST
+
+**Nombre de los asistentes/herramientas de IA empleados:** Gemini.
+
+**Para qué se usó:** 
+Implementación completa del analizador léxico (`Lexer`), el analizador sintáctico por descenso recursivo (`Parser`), la definición de nodos del Árbol de Sintaxis Abstracta (`AST`), y la creación de la suite de pruebas basadas en tablas (table-driven tests) para validar consultas exitosas y capturar errores de sintaxis con posición exacta (línea/columna).
+
+**En qué módulos o archivos influyó:** 
+`internal/lexer/lexer.go`, `internal/parser/parser.go`, `internal/parser/parser_test.go`, y `internal/ast/ast.go`.
+
+**Qué partes son de autoría íntegra del equipo:** 
+La revisión, asimilación del funcionamiento del descenso recursivo, la ejecución de pruebas locales para certificar los requisitos de la rúbrica y las correcciones iterativas de bugs detectados durante el testing (ej. soporte para el token `*`).
+
+> «Declaro que soy autor del diseño y la lógica central de este proyecto,
+> que comprendo todo el código entregado y que puedo explicarlo y
+> modificarlo.»
+>
+> — Firma / nombre: Maicol Rafael
