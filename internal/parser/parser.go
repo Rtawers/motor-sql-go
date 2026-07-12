@@ -1,9 +1,4 @@
 // Package parser construye un internal/ast.SelectStmt a partir de tokens de
-// internal/lexer, usando descenso recursivo (o Pratt para expresiones).
-//
-// PROPIEDAD: Maicol.
-
-// Package parser construye un internal/ast.SelectStmt a partir de tokens de
 // internal/lexer, usando descenso recursivo.
 //
 // PROPIEDAD: Maicol.
@@ -26,7 +21,6 @@ type Parser struct {
 
 func New(l *lexer.Lexer) *Parser {
 	p := &Parser{l: l}
-	// Leer los dos primeros tokens para inicializar cur y peek
 	p.nextToken()
 	p.nextToken()
 	return p
@@ -48,6 +42,10 @@ func (p *Parser) errorMsg(msg string) error {
 	return fmt.Errorf("error de sintaxis [Línea %d, Col %d]: %s (obtenido: '%s')", p.cur.Line, p.cur.Col, msg, p.cur.Lit)
 }
 
+func isAggregateFunc(lit string) bool {
+	return lit == "COUNT" || lit == "SUM" || lit == "AVG" || lit == "MIN" || lit == "MAX"
+}
+
 func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 	stmt := &ast.SelectStmt{}
 
@@ -57,20 +55,37 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 	}
 	p.nextToken()
 
-	// 2. Columnas
+	// 2. Columnas y Agregados (H4)
 	for {
 		if p.cur.Type == lexer.TokenOperator && p.cur.Lit == "*" {
-			stmt.Columns = append(stmt.Columns, "*")
+			stmt.SelectItems = append(stmt.SelectItems, &ast.ColumnItem{Name: "*"})
 			p.nextToken()
+		} else if p.cur.Type == lexer.TokenKeyword && isAggregateFunc(p.cur.Lit) {
+			funcName := p.cur.Lit
+			p.nextToken()
+			if p.cur.Lit != "(" {
+				return nil, p.errorMsg("se esperaba '(' después de la función de agregación")
+			}
+			p.nextToken()
+			if p.cur.Type != lexer.TokenIdent && p.cur.Lit != "*" {
+				return nil, p.errorMsg("se esperaba columna o '*' dentro de la función")
+			}
+			colName := p.cur.Lit
+			p.nextToken()
+			if p.cur.Lit != ")" {
+				return nil, p.errorMsg("se esperaba ')' cerrando la función")
+			}
+			p.nextToken()
+			stmt.SelectItems = append(stmt.SelectItems, &ast.AggregateItem{Func: funcName, Column: colName})
 		} else if p.cur.Type == lexer.TokenIdent {
-			stmt.Columns = append(stmt.Columns, p.cur.Lit)
+			stmt.SelectItems = append(stmt.SelectItems, &ast.ColumnItem{Name: p.cur.Lit})
 			p.nextToken()
 		} else {
-			return nil, p.errorMsg("se esperaba columna o '*'")
+			return nil, p.errorMsg("se esperaba columna, '*' o función de agregación")
 		}
 
 		if p.cur.Type == lexer.TokenOperator && p.cur.Lit == "," {
-			p.nextToken() // saltar la coma
+			p.nextToken()
 		} else {
 			break
 		}
@@ -82,14 +97,36 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 	}
 	p.nextToken()
 
-	// 4. Tabla
 	if p.cur.Type != lexer.TokenIdent {
 		return nil, p.errorMsg("se esperaba nombre de tabla")
 	}
 	stmt.From = p.cur.Lit
 	p.nextToken()
 
-	// 5. WHERE (opcional)
+	// 4. INNER JOIN (H5)
+	if p.cur.Type == lexer.TokenKeyword && p.cur.Lit == "INNER" {
+		p.nextToken()
+		if p.cur.Lit != "JOIN" {
+			return nil, p.errorMsg("se esperaba JOIN")
+		}
+		p.nextToken()
+		if p.cur.Type != lexer.TokenIdent {
+			return nil, p.errorMsg("se esperaba nombre de tabla para el JOIN")
+		}
+		joinTable := p.cur.Lit
+		p.nextToken()
+		if p.cur.Lit != "ON" {
+			return nil, p.errorMsg("se esperaba ON")
+		}
+		p.nextToken()
+		joinExpr, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Join = &ast.JoinClause{Table: joinTable, On: joinExpr}
+	}
+
+	// 5. WHERE
 	if p.cur.Type == lexer.TokenKeyword && p.cur.Lit == "WHERE" {
 		p.nextToken()
 		expr, err := p.parseExpr()
@@ -99,7 +136,67 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 		stmt.Where = expr
 	}
 
-	// Asegurar que no haya basura al final
+	// 6. GROUP BY (H4)
+	if p.cur.Type == lexer.TokenKeyword && p.cur.Lit == "GROUP" {
+		p.nextToken()
+		if p.cur.Lit != "BY" {
+			return nil, p.errorMsg("se esperaba BY")
+		}
+		p.nextToken()
+		for {
+			if p.cur.Type != lexer.TokenIdent {
+				return nil, p.errorMsg("se esperaba nombre de columna en GROUP BY")
+			}
+			stmt.GroupBy = append(stmt.GroupBy, p.cur.Lit)
+			p.nextToken()
+			if p.cur.Lit == "," {
+				p.nextToken()
+			} else {
+				break
+			}
+		}
+	}
+
+	// 7. ORDER BY (H4)
+	if p.cur.Type == lexer.TokenKeyword && p.cur.Lit == "ORDER" {
+		p.nextToken()
+		if p.cur.Lit != "BY" {
+			return nil, p.errorMsg("se esperaba BY")
+		}
+		p.nextToken()
+		for {
+			if p.cur.Type != lexer.TokenIdent {
+				return nil, p.errorMsg("se esperaba nombre de columna en ORDER BY")
+			}
+			colName := p.cur.Lit
+			p.nextToken()
+
+			desc := false
+			if p.cur.Type == lexer.TokenKeyword && (p.cur.Lit == "ASC" || p.cur.Lit == "DESC") {
+				desc = (p.cur.Lit == "DESC")
+				p.nextToken()
+			}
+			stmt.OrderBy = append(stmt.OrderBy, ast.OrderItem{Column: colName, Desc: desc})
+
+			if p.cur.Lit == "," {
+				p.nextToken()
+			} else {
+				break
+			}
+		}
+	}
+
+	// 8. LIMIT (H4)
+	if p.cur.Type == lexer.TokenKeyword && p.cur.Lit == "LIMIT" {
+		p.nextToken()
+		if p.cur.Type != lexer.TokenInt {
+			return nil, p.errorMsg("se esperaba un número para el LIMIT")
+		}
+		limitVal, _ := strconv.Atoi(p.cur.Lit)
+		stmt.Limit = &limitVal
+		p.nextToken()
+	}
+
 	if p.cur.Type != lexer.TokenEOF {
 		return nil, p.errorMsg("tokens inesperados al final de la consulta")
 	}
@@ -107,7 +204,7 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 	return stmt, nil
 }
 
-// ---- Evaluación de Expresiones (Descenso Recursivo) ----
+// ---- Evaluación de Expresiones (Sin cambios) ----
 
 func (p *Parser) parseExpr() (ast.Expr, error) {
 	return p.parseOrExpr()

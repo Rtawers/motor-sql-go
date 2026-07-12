@@ -2,32 +2,65 @@
 // por internal/parser y consumido por internal/exec.
 //
 // PROPIEDAD: Maicol.
-// Este archivo es un ESQUELETO/PUNTO DE PARTIDA, no una implementación
-// completa — el diseño real de los nodos (qué campos, cómo se representa
-// AND/OR anidado, etc.) es una decisión del equipo a documentar en la
-// bitácora (Hito H2).
-
-// Package ast define los nodos del árbol de sintaxis abstracta producido
-// por internal/parser y consumido por internal/exec.
-//
-// PROPIEDAD: Maicol.
 package ast
 
 import "github.com/uss-taller-go/motor-sql-go/internal/types"
 
-// SelectStmt representa un `SELECT ... FROM ... [WHERE ...]`.
+// SelectStmt representa un `SELECT ... FROM ... [JOIN ...] [WHERE ...] [GROUP BY ...] [ORDER BY ...] [LIMIT ...]`.
 type SelectStmt struct {
-	Columns []string // "*" se representa como []string{"*"}
-	From    string
-	Where   Expr // nil si no hay WHERE
+	SelectItems []SelectItem
+	From        string
+	Join        *JoinClause // H5: Lennart
+	Where       Expr        // nil si no hay WHERE
+	GroupBy     []string    // H4: Victoria
+	OrderBy     []OrderItem // H4: Victoria
+	Limit       *int        // H4: Victoria (puntero para saber si es nulo)
 }
 
-// Expr es la interfaz de cualquier nodo de expresión.
+// ---- H4: Elementos del SELECT ----
+
+// SelectItem es la interfaz para columnas simples o funciones de agregación.
+type SelectItem interface {
+	selectItemNode()
+}
+
+// ColumnItem representa una columna normal o un "*".
+type ColumnItem struct {
+	Name string
+}
+
+func (c *ColumnItem) selectItemNode() {}
+
+// AggregateItem representa COUNT(col), SUM(col), etc.
+type AggregateItem struct {
+	Func   string // COUNT, SUM, AVG, MIN, MAX
+	Column string // Nombre de la columna o "*"
+}
+
+func (a *AggregateItem) selectItemNode() {}
+
+// ---- H4: ORDER BY ----
+
+// OrderItem representa una columna y su dirección de ordenamiento.
+type OrderItem struct {
+	Column string
+	Desc   bool // false = ASC, true = DESC
+}
+
+// ---- H5: JOIN ----
+
+// JoinClause representa un INNER JOIN ... ON ...
+type JoinClause struct {
+	Table string
+	On    Expr
+}
+
+// ---- Expresiones (Ya implementado) ----
+
 type Expr interface {
 	exprNode()
 }
 
-// BinaryExpr representa operaciones binarias (AND, OR, =, <>, >, <, >=, <=).
 type BinaryExpr struct {
 	Left  Expr
 	Op    string
@@ -36,14 +69,12 @@ type BinaryExpr struct {
 
 func (b *BinaryExpr) exprNode() {}
 
-// ColumnRef representa la referencia a una columna en la consulta (ej. "salario").
 type ColumnRef struct {
 	Name string
 }
 
 func (c *ColumnRef) exprNode() {}
 
-// Literal representa un valor constante (ej. 3000, 'TI', true, NULL).
 type Literal struct {
 	Value types.Value
 }
