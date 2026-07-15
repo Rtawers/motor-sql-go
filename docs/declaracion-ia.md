@@ -57,3 +57,22 @@ La revisión, asimilación del funcionamiento del descenso recursivo, la ejecuci
 > modificarlo.»
 >
 > — Firma / nombre: Maicol Rafael
+
+## Hito 4 (H4) — Ordenamiento y Agregaciones
+
+**Nombre de los asistentes/herramientas de IA empleados:** Gemini.
+
+**Para qué se usó:** 
+Diseño y desarrollo de los operadores relacionales `LimitOp` (streaming) y `GroupByOp` (materializador). Generación de la lógica de evaluación de agregados y el agrupamiento dinámico en memoria (`bake`), asegurando el filtrado correcto de valores nulos, junto con las pruebas de validación automatizadas correspondientes.
+
+**En qué módulos o archivos influyó:** 
+`internal/exec/orderby.go`, `internal/exec/limit.go`, `internal/exec/groupby.go` y todos sus archivos de testing asociados (`_test.go`).
+
+**Qué partes son de autoría íntegra del equipo:** 
+La decisión sobre el flujo del pipeline (streaming vs materialización en memoria), el manejo estricto de tipos de salida y las convenciones adoptadas para la evaluación de NULLs documentadas en la bitácora.
+
+> «Declaro que soy autor del diseño y la lógica central de este proyecto,
+> que comprendo todo el código entregado y que puedo explicarlo y
+> modificarlo.»
+>
+> — Firma / nombre: Lucrecia Victoria

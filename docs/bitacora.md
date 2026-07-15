@@ -126,3 +126,14 @@ abierto/cerrado que exige la rúbrica.
 **¿Se consultó IA?:** Sí — se usó Claude para escribir el traductor y su suite
 de tests de integración (parser -> traductor -> filtro). El equipo comprende
 el flujo completo y puede modificarlo en vivo.
+
+## H4 — Semántica de NULL en Agregaciones (GroupBy) — [Fecha actual] — Victoria
+
+**Qué se decidió:** 
+Se decidió que las funciones de agregación (`SUM`, `AVG`, `MIN`, `MAX`) ignoren los valores `NULL` al momento de iterar y calcular los resultados, con la excepción de `COUNT(*)` que cuenta la fila independientemente de su contenido. Si un grupo tiene exclusivamente valores nulos para una columna solicitada, la función devolverá `NULL`.
+
+**Qué otras opciones se evaluaron y por qué se descartaron:** 
+Se evaluó tratar `NULL` como un cero aritmético (0) para facilitar los promedios y las sumas. Se descartó de plano porque contamina el análisis de datos matemáticos, alterando el denominador en el `AVG` y falseando sumatorias según la convención del estándar SQL.
+
+**Razón técnica de la elección:** 
+Implementar un chequeo condicional `if v.IsNull() { continue }` al recorrer el "bucket" en memoria mantiene la integridad relacional del sistema y asegura que los tipos permanezcan consistentes durante la composición del nuevo `Schema` de salida.
