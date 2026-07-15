@@ -13,12 +13,12 @@ func TestGroupBy_TableDriven(t *testing.T) {
 		scan := exec.NewScan(tbl)
 		aggs := []exec.AggregateDef{{Func: "COUNT", Column: "*"}}
 		gb, _ := exec.NewGroupBy(scan, "", aggs)
-		
+
 		rows := drain(t, gb)
 		if len(rows) != 1 {
 			t.Fatalf("esperaba 1 fila global, obtuve %d", len(rows))
 		}
-		
+
 		val, _ := rows[0].Get("COUNT(*)")
 		if val.I != 5 {
 			t.Errorf("esperaba COUNT(*) = 5, obtuve %d", val.I)
@@ -29,7 +29,7 @@ func TestGroupBy_TableDriven(t *testing.T) {
 		scan := exec.NewScan(tbl)
 		aggs := []exec.AggregateDef{{Func: "COUNT", Column: "*"}}
 		gb, _ := exec.NewGroupBy(scan, "departamento", aggs)
-		
+
 		rows := drain(t, gb)
 		// testdata/empleados.csv tiene 3 departamentos: Ventas, TI, RRHH
 		if len(rows) != 3 {
