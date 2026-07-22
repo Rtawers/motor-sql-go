@@ -36,7 +36,7 @@ func TestParse_TableDriven(t *testing.T) {
 		},
 		{
 			name:    "Error: Basura al final de la consulta",
-			sql:     "SELECT id FROM empleados LIMIT 10", // LIMIT aún no soportado por tu gramática base
+			sql:     "SELECT id FROM empleados basura_invalida", // palabra suelta no reconocida por ninguna cláusula
 			wantErr: true,
 			errMsg:  "tokens inesperados al final",
 		},
