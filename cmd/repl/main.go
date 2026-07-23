@@ -13,6 +13,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/uss-taller-go/motor-sql-go/internal/ast"
@@ -25,8 +26,7 @@ func main() {
 	cat := catalog.NewCatalog()
 
 	// Cargar las tablas de ejemplo disponibles en testdata.
-	loadInto(cat, "testdata/empleados.csv", "empleados")
-	loadInto(cat, "testdata/departamentos.csv", "departamentos")
+	loadAllCSV(cat, "testdata")
 
 	fmt.Println("Motor SQL en memoria — REPL")
 	fmt.Println("Tablas cargadas:", strings.Join(cat.TableNames(), ", "))
@@ -59,6 +59,21 @@ func main() {
 func loadInto(cat *catalog.Catalog, path, name string) {
 	if tbl, err := catalog.LoadCSV(path, name); err == nil {
 		cat.Register(tbl)
+	}
+}
+
+// loadAllCSV carga todos los archivos .csv del directorio dado en el catálogo.
+func loadAllCSV(cat *catalog.Catalog, dir string) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".csv") {
+			continue
+		}
+		name := strings.TrimSuffix(e.Name(), ".csv")
+		loadInto(cat, filepath.Join(dir, e.Name()), name)
 	}
 }
 
