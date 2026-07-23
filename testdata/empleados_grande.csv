@@ -1,0 +1,16 @@
+id,nombre,departamento,salario,activo
+1,Ana,Ventas,3200.50,true
+2,Luis,TI,4100.00,true
+3,Marta,TI,3900.75,false
+4,Pedro,Ventas,2800.00,true
+5,Sofia,RRHH,3300.00,true
+6,Carlos,TI,4500.00,true
+7,Lucia,Ventas,3100.25,true
+8,Miguel,RRHH,2950.00,false
+9,Elena,TI,3800.00,true
+10,Jorge,Ventas,2700.50,true
+11,Rosa,Legal,5200.00,true
+12,Diego,Legal,4800.75,true
+13,Carmen,RRHH,3150.00,true
+14,Pablo,TI,4200.00,false
+15,Laura,Ventas,3350.00,true
