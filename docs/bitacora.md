@@ -129,11 +129,30 @@ el flujo completo y puede modificarlo en vivo.
 
 ## H4 — Semántica de NULL en Agregaciones (GroupBy) — [Fecha actual] — Victoria
 
-**Qué se decidió:** 
+**Qué se decidió:**
 Se decidió que las funciones de agregación (`SUM`, `AVG`, `MIN`, `MAX`) ignoren los valores `NULL` al momento de iterar y calcular los resultados, con la excepción de `COUNT(*)` que cuenta la fila independientemente de su contenido. Si un grupo tiene exclusivamente valores nulos para una columna solicitada, la función devolverá `NULL`.
 
-**Qué otras opciones se evaluaron y por qué se descartaron:** 
+**Qué otras opciones se evaluaron y por qué se descartaron:**
 Se evaluó tratar `NULL` como un cero aritmético (0) para facilitar los promedios y las sumas. Se descartó de plano porque contamina el análisis de datos matemáticos, alterando el denominador en el `AVG` y falseando sumatorias según la convención del estándar SQL.
 
-**Razón técnica de la elección:** 
+**Razón técnica de la elección:**
 Implementar un chequeo condicional `if v.IsNull() { continue }` al recorrer el "bucket" en memoria mantiene la integridad relacional del sistema y asegura que los tipos permanezcan consistentes durante la composición del nuevo `Schema` de salida.
+
+**¿Se consultó IA? ¿Qué se preguntó y qué se hizo con la respuesta?**
+Sí. Se utilizó IA como apoyo para revisar el manejo de valores `NULL` en funciones de agregación y contrastarlo con la semántica del estándar SQL. La propuesta fue adaptada al diseño del proyecto y validada mediante pruebas del operador `GroupBy`.
+
+---
+
+## H5 — INNER JOIN: nested-loop vs hash join — 22/07/2026 — Lennart
+
+**Qué se decidió:**
+Se implementaron los dos algoritmos de `INNER JOIN` solicitados en el proyecto, ambos sobre la interfaz `Operator`: `NestedLoopJoin` y `HashJoin`. El esquema resultante concatena las columnas de ambas tablas, prefijándolas con el nombre de la tabla (por ejemplo, `empleados.id` y `departamentos.id`) para evitar colisiones de nombres.
+
+**Qué otras opciones se evaluaron y por qué se descartaron:**
+Para el `HashJoin` se evaluó construir la tabla hash sobre la relación izquierda en lugar de la derecha. Finalmente se eligió construirla sobre la derecha por mantener una convención clara entre la fase *build* y la fase *probe*. También se evaluó no prefijar los nombres de las columnas, pero se descartó porque dos tablas pueden contener columnas homónimas (como `id`), generando ambigüedad durante la proyección y el filtrado.
+
+**Razón técnica de la elección:**
+El `NestedLoopJoin` compara cada fila de la tabla izquierda con todas las filas de la derecha, obteniendo un costo de `O(N×M)`. Es una implementación sencilla y no requiere memoria adicional significativa. En cambio, `HashJoin` construye previamente una tabla hash con la relación derecha y luego recorre la izquierda realizando búsquedas en tiempo promedio constante, obteniendo un costo aproximado de `O(N+M)`. Aunque requiere memoria adicional para almacenar el hash, ofrece un mejor rendimiento en conjuntos de datos grandes. Ambos operadores fueron validados mediante pruebas para asegurar que producen exactamente el mismo resultado.
+
+**¿Se consultó IA? ¿Qué se preguntó y qué se hizo con la respuesta?**
+Sí. Se utilizó IA para revisar la estructura de ambos algoritmos de `JOIN`, comparar sus complejidades y proponer una organización sobre la interfaz `Operator`. Las sugerencias fueron adaptadas a la arquitectura del proyecto y posteriormente verificadas mediante pruebas unitarias y de integración.
